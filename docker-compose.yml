@@ -1,0 +1,9 @@
+services:
+  max-chat:
+    build: .
+    container_name: max-green-api-chat
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8087:3000"
