@@ -169,3 +169,12 @@ Frontend обращается только к этим endpoints:
 - История загружается при открытии чата; новые сообщения поступают через notifications.
 - UI сознательно ограничен текстовыми сообщениями согласно заданию.
 - В бесплатном hosting-контейнере после sleep/restart серверная сессия очищается — достаточно повторно ввести GREEN-API credentials.
+
+## GREEN-API notification settings
+
+For HTTP polling (`ReceiveNotification` + `DeleteNotification`) configure the instance in the GREEN-API console:
+
+- Notification URL: leave empty (`webhookUrl = ""`)
+- "Receive notifications about incoming messages and files": enable (`incomingWebhook = "yes"`)
+
+Other notification switches may remain disabled for this test task.
