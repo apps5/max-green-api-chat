@@ -92,20 +92,31 @@ export class GreenApiClient {
     if (!Array.isArray(history)) return []
 
     return history
-      .filter((message) =>
-        (message.type === 'incoming' || message.type === 'outgoing') &&
-        message.typeMessage === 'textMessage' &&
-        typeof message.textMessage === 'string',
-      )
-      .map((message, index) => ({
-        id: message.idMessage || `history-${chatId}-${message.timestamp ?? 0}-${index}`,
-        chatId: message.chatId || chatId,
-        text: message.textMessage as string,
-        timestamp: message.timestamp ?? Math.floor(Date.now() / 1000),
-        direction: message.type as 'incoming' | 'outgoing',
-        status: normalizeMessageStatus(message.statusMessage),
-        senderName: message.senderName,
-      }))
+      .map((message, index): UiMessage | null => {
+        if (message.type !== 'incoming' && message.type !== 'outgoing') return null
+
+        const isTextMessage =
+          message.typeMessage === 'textMessage' || message.typeMessage === 'extendedTextMessage'
+        if (!isTextMessage) return null
+
+        const text =
+          typeof message.textMessage === 'string' && message.textMessage.trim()
+            ? message.textMessage
+            : message.extendedTextMessage?.text
+
+        if (typeof text !== 'string' || !text.trim()) return null
+
+        return {
+          id: message.idMessage || `history-${chatId}-${message.timestamp ?? 0}-${index}`,
+          chatId: message.chatId || chatId,
+          text,
+          timestamp: message.timestamp ?? Math.floor(Date.now() / 1000),
+          direction: message.type,
+          status: normalizeMessageStatus(message.statusMessage),
+          senderName: message.type === 'incoming' ? message.senderName : undefined,
+        }
+      })
+      .filter((message): message is UiMessage => message !== null)
       .sort((a, b) => a.timestamp - b.timestamp)
   }
 

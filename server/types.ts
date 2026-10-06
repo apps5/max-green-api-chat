@@ -20,6 +20,9 @@ export interface GreenApiHistoryMessage {
   chatId?: string
   senderName?: string
   textMessage?: string
+  extendedTextMessage?: {
+    text?: string
+  }
 }
 
 export interface IncomingNotification {
@@ -38,6 +41,9 @@ export interface IncomingNotification {
       typeMessage?: string
       textMessageData?: {
         textMessage?: string
+  extendedTextMessage?: {
+    text?: string
+  }
       }
     }
   }

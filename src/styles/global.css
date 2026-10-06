@@ -225,9 +225,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   min-height: 0;
   overflow-y: auto;
   position: relative;
-  background:
-    linear-gradient(180deg, rgba(91,174,242,.18), rgba(94,209,198,.20)),
+  background-color: var(--chat-bg-top);
+  background-image:
+    url('../assets/pattern_space.svg'),
+    linear-gradient(180deg, rgba(91,174,242,.32), rgba(94,209,198,.34)),
     linear-gradient(180deg, var(--chat-bg-top), var(--chat-bg-bottom));
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: 250px 188px, cover, cover;
+  background-position: center top, center, center;
+  background-attachment: local, local, local;
 }
 .messages::before,
 .chat-placeholder::before {
@@ -235,11 +241,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+.chat-placeholder::before {
   background-image: url('../assets/pattern_space.svg');
   background-repeat: repeat;
   background-size: 250px 188px;
-  opacity: .56;
-  mix-blend-mode: multiply;
+  opacity: .72;
 }
 .messages__inner {
   position: relative;
@@ -541,7 +548,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   .chat-header__actions .icon-button { width: 40px; }
   .chat-header__actions svg { width: 25px; height: 25px; }
 
-  .messages::before { background-size: 235px 176px; opacity: .56; }
+  .messages { background-size: 235px 172px, cover, cover; }
   .messages__inner { width: calc(100% - 20px); padding: 14px 0 14px; }
   .message-line { margin: 5px 0; }
   .message-bubble { max-width: 83%; padding: 10px 11px 8px; border-radius: 17px; }
