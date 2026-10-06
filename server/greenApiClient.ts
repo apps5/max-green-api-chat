@@ -1,4 +1,11 @@
-import type { GreenApiCredentials, IncomingNotification, UiMessage } from './types.js'
+import type {
+  GreenApiChat,
+  GreenApiCredentials,
+  GreenApiHistoryMessage,
+  IncomingNotification,
+  UiChat,
+  UiMessage,
+} from './types.js'
 
 interface StateResponse {
   stateInstance: string
@@ -55,6 +62,48 @@ export class GreenApiClient {
   async getState(): Promise<string> {
     const result = await this.request<StateResponse>(this.endpoint('getStateInstance'))
     return result.stateInstance
+  }
+
+  async getChats(): Promise<UiChat[]> {
+    const chats = await this.request<GreenApiChat[]>(this.endpoint('getChats'))
+    if (!Array.isArray(chats)) return []
+
+    return chats.map((chat) => ({
+      chatId: chat.chatId,
+      title: chat.name?.trim() || (chat.phoneNumber ? `+${chat.phoneNumber}` : `Чат ${chat.chatId}`),
+      type: chat.type || 'user',
+      phoneNumber: chat.phoneNumber ? String(chat.phoneNumber) : undefined,
+    }))
+  }
+
+  async getChatHistory(chatId: string, count = 100): Promise<UiMessage[]> {
+    const history = await this.request<GreenApiHistoryMessage[]>(this.endpoint('getChatHistory'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, count }),
+    })
+
+    if (!Array.isArray(history)) return []
+
+    return history
+      .filter((message) =>
+        (message.type === 'incoming' || message.type === 'outgoing') &&
+        message.typeMessage === 'textMessage' &&
+        typeof message.textMessage === 'string',
+      )
+      .map((message, index) => ({
+        id: message.idMessage || `history-${chatId}-${message.timestamp ?? 0}-${index}`,
+        chatId: message.chatId || chatId,
+        text: message.textMessage as string,
+        timestamp: message.timestamp ?? Math.floor(Date.now() / 1000),
+        direction: message.type as 'incoming' | 'outgoing',
+        status:
+          message.statusMessage === 'sent' || message.statusMessage === 'delivered' || message.statusMessage === 'read'
+            ? message.statusMessage
+            : undefined,
+        senderName: message.senderName,
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp)
   }
 
   async checkAccount(phoneNumber: string): Promise<{ chatId: string; phoneNumber: string }> {

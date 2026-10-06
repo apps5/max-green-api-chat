@@ -1,4 +1,4 @@
-import type { ChatMessage } from './chat'
+import type { ChatMessage, ChatSummary } from './chat'
 
 export interface SessionStatus {
   authenticated: boolean
@@ -6,9 +6,17 @@ export interface SessionStatus {
   stateInstance?: string
 }
 
+export interface ChatsResponse {
+  chats: ChatSummary[]
+}
+
 export interface CreateChatResponse {
   chatId: string
   phoneNumber: string
+}
+
+export interface HistoryResponse {
+  messages: ChatMessage[]
 }
 
 export interface PollResponse {

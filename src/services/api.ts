@@ -1,4 +1,11 @@
-import type { CreateChatResponse, PollResponse, SendMessageResponse, SessionStatus } from '../types/api'
+import type {
+  ChatsResponse,
+  CreateChatResponse,
+  HistoryResponse,
+  PollResponse,
+  SendMessageResponse,
+  SessionStatus,
+} from '../types/api'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
 
@@ -30,12 +37,24 @@ export function disconnectSession(): Promise<void> {
   return fetch('/api/session', { method: 'DELETE' }).then(parseResponse<void>)
 }
 
+export function getChats(): Promise<ChatsResponse> {
+  return fetch('/api/chats').then(parseResponse<ChatsResponse>)
+}
+
 export function createChat(phoneNumber: string): Promise<CreateChatResponse> {
-  return fetch('/api/chats', {
+  return fetch('/api/chats/resolve', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ phoneNumber }),
   }).then(parseResponse<CreateChatResponse>)
+}
+
+export function getChatHistory(chatId: string): Promise<HistoryResponse> {
+  return fetch('/api/chats/history', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ chatId }),
+  }).then(parseResponse<HistoryResponse>)
 }
 
 export function sendTextMessage(chatId: string, message: string): Promise<SendMessageResponse> {

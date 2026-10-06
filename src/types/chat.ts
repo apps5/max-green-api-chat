@@ -1,5 +1,5 @@
 export type MessageDirection = 'incoming' | 'outgoing'
-export type MessageStatus = 'sending' | 'sent' | 'error'
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'error'
 
 export interface ChatMessage {
   id: string
@@ -16,7 +16,8 @@ export interface ChatMessage {
 export interface ChatSummary {
   chatId: string
   title: string
+  type?: string
   phoneNumber?: string
-  lastMessage: string
+  lastMessage?: string
   timestamp?: number
 }

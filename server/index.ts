@@ -12,6 +12,17 @@ const apiUrl = (process.env.GREEN_API_URL ?? 'https://api.green-api.com').replac
 app.disable('x-powered-by')
 app.use(express.json({ limit: '32kb' }))
 
+class ClientError extends Error {
+  readonly statusCode = 400
+}
+
+class UnauthorizedError extends Error {
+  readonly statusCode = 401
+  constructor() {
+    super('Сессия не найдена. Введите данные GREEN-API повторно.')
+  }
+}
+
 function normalizeIdInstance(value: unknown): string {
   const id = typeof value === 'string' ? value.trim() : ''
   if (!/^\d+$/.test(id)) throw new ClientError('idInstance должен содержать только цифры')
@@ -33,6 +44,12 @@ function normalizePhone(value: unknown): string {
   return phone
 }
 
+function normalizeChatId(value: unknown): string {
+  const chatId = typeof value === 'string' ? value.trim() : ''
+  if (!chatId || chatId.length > 128) throw new ClientError('Некорректный chatId')
+  return chatId
+}
+
 function normalizeMessage(value: unknown): string {
   const message = typeof value === 'string' ? value.trim() : ''
   if (!message) throw new ClientError('Введите текст сообщения')
@@ -44,17 +61,6 @@ function clientFor(request: Request): GreenApiClient {
   const session = getSession(request)
   if (!session) throw new UnauthorizedError()
   return new GreenApiClient(session.credentials)
-}
-
-class ClientError extends Error {
-  readonly statusCode = 400
-}
-
-class UnauthorizedError extends Error {
-  readonly statusCode = 401
-  constructor() {
-    super('Сессия не найдена. Введите данные GREEN-API повторно.')
-  }
 }
 
 app.get('/api/health', (_request, response) => {
@@ -93,11 +99,28 @@ app.delete('/api/session', (request, response) => {
   response.status(204).end()
 })
 
-app.post('/api/chats', async (request, response, next) => {
+// Thin BFF: chat data remains owned by GREEN-API/MAX.
+app.get('/api/chats', async (request, response, next) => {
+  try {
+    response.json({ chats: await clientFor(request).getChats() })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/chats/resolve', async (request, response, next) => {
   try {
     const phoneNumber = normalizePhone(request.body?.phoneNumber)
-    const chat = await clientFor(request).checkAccount(phoneNumber)
-    response.json(chat)
+    response.json(await clientFor(request).checkAccount(phoneNumber))
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/chats/history', async (request, response, next) => {
+  try {
+    const chatId = normalizeChatId(request.body?.chatId)
+    response.json({ messages: await clientFor(request).getChatHistory(chatId, 100) })
   } catch (error) {
     next(error)
   }
@@ -105,12 +128,9 @@ app.post('/api/chats', async (request, response, next) => {
 
 app.post('/api/messages/send', async (request, response, next) => {
   try {
-    const chatId = typeof request.body?.chatId === 'string' ? request.body.chatId.trim() : ''
-    if (!chatId) throw new ClientError('Не выбран чат')
-
+    const chatId = normalizeChatId(request.body?.chatId)
     const message = normalizeMessage(request.body?.message)
-    const result = await clientFor(request).sendMessage(chatId, message)
-    response.json(result)
+    response.json(await clientFor(request).sendMessage(chatId, message))
   } catch (error) {
     next(error)
   }
@@ -118,8 +138,7 @@ app.post('/api/messages/send', async (request, response, next) => {
 
 app.get('/api/messages/poll', async (request, response, next) => {
   try {
-    const messages = await clientFor(request).receiveTextMessages()
-    response.json({ messages })
+    response.json({ messages: await clientFor(request).receiveTextMessages() })
   } catch (error) {
     next(error)
   }
