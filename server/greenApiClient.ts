@@ -7,6 +7,12 @@ import type {
   UiMessage,
 } from './types.js'
 
+type UiMessageStatus = NonNullable<UiMessage['status']>
+
+function normalizeMessageStatus(status: string | undefined): UiMessageStatus | undefined {
+  return status === 'sent' || status === 'delivered' || status === 'read' ? status : undefined
+}
+
 interface StateResponse {
   stateInstance: string
 }
@@ -97,10 +103,7 @@ export class GreenApiClient {
         text: message.textMessage as string,
         timestamp: message.timestamp ?? Math.floor(Date.now() / 1000),
         direction: message.type as 'incoming' | 'outgoing',
-        status:
-          message.statusMessage === 'sent' || message.statusMessage === 'delivered' || message.statusMessage === 'read'
-            ? message.statusMessage
-            : undefined,
+        status: normalizeMessageStatus(message.statusMessage),
         senderName: message.senderName,
       }))
       .sort((a, b) => a.timestamp - b.timestamp)
