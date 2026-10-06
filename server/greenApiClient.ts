@@ -82,40 +82,64 @@ export class GreenApiClient {
     }))
   }
 
+  private toUiHistoryMessage(message: GreenApiHistoryMessage, chatId: string, fallbackId: string): UiMessage | null {
+    if (message.type !== 'incoming' && message.type !== 'outgoing') return null
+
+    const text =
+      typeof message.textMessage === 'string' && message.textMessage.trim()
+        ? message.textMessage
+        : message.extendedTextMessage?.text ?? message.extendedTextMessageData?.text
+
+    if (typeof text !== 'string' || !text.trim()) return null
+
+    return {
+      id: message.idMessage || fallbackId,
+      chatId,
+      text: text.trim(),
+      timestamp: message.timestamp ?? Math.floor(Date.now() / 1000),
+      direction: message.type,
+      status: normalizeMessageStatus(message.statusMessage),
+      senderName: message.type === 'incoming' ? message.senderName : undefined,
+    }
+  }
+
+  private async getRecentIncomingMessages(minutes = 10080): Promise<GreenApiHistoryMessage[]> {
+    const incoming = await this.request<GreenApiHistoryMessage[]>(
+      `${this.endpoint('lastIncomingMessages')}?minutes=${minutes}`,
+    )
+    return Array.isArray(incoming) ? incoming : []
+  }
+
   async getChatHistory(chatId: string, count = 100): Promise<UiMessage[]> {
-    const history = await this.request<GreenApiHistoryMessage[]>(this.endpoint('getChatHistory'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, count }),
-    })
+    const [history, recentIncoming] = await Promise.all([
+      this.request<GreenApiHistoryMessage[]>(this.endpoint('getChatHistory'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, count }),
+      }),
+      this.getRecentIncomingMessages(),
+    ])
 
-    if (!Array.isArray(history)) return []
+    const historyItems = Array.isArray(history) ? history : []
+    const incomingForChat = recentIncoming.filter((message) =>
+      message.type === 'incoming' && String(message.chatId ?? '') === chatId,
+    )
 
-    return history
-      .map((message, index): UiMessage | null => {
-        if (message.type !== 'incoming' && message.type !== 'outgoing') return null
+    const mapped = [
+      ...historyItems.map((message, index) =>
+        this.toUiHistoryMessage(message, chatId, `history-${chatId}-${message.timestamp ?? 0}-${index}`),
+      ),
+      ...incomingForChat.map((message, index) =>
+        this.toUiHistoryMessage(message, chatId, `incoming-${chatId}-${message.timestamp ?? 0}-${index}`),
+      ),
+    ].filter((message): message is UiMessage => message !== null)
 
-        const text =
-          typeof message.textMessage === 'string' && message.textMessage.trim()
-            ? message.textMessage
-            : message.extendedTextMessage?.text
+    const byId = new Map<string, UiMessage>()
+    for (const message of mapped) {
+      byId.set(message.id, { ...byId.get(message.id), ...message })
+    }
 
-        if (typeof text !== 'string' || !text.trim()) return null
-
-        return {
-          id: message.idMessage || `history-${chatId}-${message.timestamp ?? 0}-${index}`,
-          // The history endpoint was requested for this chat. Bind every returned
-          // item to that chat instead of trusting per-item chatId variants.
-          chatId,
-          text: text.trim(),
-          timestamp: message.timestamp ?? Math.floor(Date.now() / 1000),
-          direction: message.type,
-          status: normalizeMessageStatus(message.statusMessage),
-          senderName: message.type === 'incoming' ? message.senderName : undefined,
-        }
-      })
-      .filter((message): message is UiMessage => message !== null)
-      .sort((a, b) => a.timestamp - b.timestamp)
+    return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp)
   }
 
   async checkAccount(phoneNumber: string): Promise<{ chatId: string; phoneNumber: string }> {

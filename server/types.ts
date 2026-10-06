@@ -23,7 +23,11 @@ export interface GreenApiHistoryMessage {
   extendedTextMessage?: {
     text?: string
   }
+  extendedTextMessageData?: {
+    text?: string
+  }
 }
+
 
 export interface IncomingNotification {
   receiptId: number
