@@ -95,10 +95,6 @@ export class GreenApiClient {
       .map((message, index): UiMessage | null => {
         if (message.type !== 'incoming' && message.type !== 'outgoing') return null
 
-        const isTextMessage =
-          message.typeMessage === 'textMessage' || message.typeMessage === 'extendedTextMessage'
-        if (!isTextMessage) return null
-
         const text =
           typeof message.textMessage === 'string' && message.textMessage.trim()
             ? message.textMessage
@@ -108,8 +104,10 @@ export class GreenApiClient {
 
         return {
           id: message.idMessage || `history-${chatId}-${message.timestamp ?? 0}-${index}`,
-          chatId: message.chatId || chatId,
-          text,
+          // The history endpoint was requested for this chat. Bind every returned
+          // item to that chat instead of trusting per-item chatId variants.
+          chatId,
+          text: text.trim(),
           timestamp: message.timestamp ?? Math.floor(Date.now() / 1000),
           direction: message.type,
           status: normalizeMessageStatus(message.statusMessage),
@@ -156,16 +154,24 @@ export class GreenApiClient {
       if (!notification?.receiptId) break
 
       const body = notification.body
+      const messageData = body?.messageData
+      const incomingText =
+        messageData?.typeMessage === 'textMessage'
+          ? messageData.textMessageData?.textMessage
+          : messageData?.typeMessage === 'extendedTextMessage'
+            ? messageData.extendedTextMessageData?.text
+            : undefined
+
       if (
         body?.typeWebhook === 'incomingMessageReceived' &&
-        body.messageData?.typeMessage === 'textMessage' &&
-        typeof body.messageData.textMessageData?.textMessage === 'string' &&
+        typeof incomingText === 'string' &&
+        incomingText.trim() &&
         typeof body.senderData?.chatId === 'string'
       ) {
         messages.push({
           id: body.idMessage ?? `incoming-${notification.receiptId}`,
           chatId: body.senderData.chatId,
-          text: body.messageData.textMessageData.textMessage,
+          text: incomingText.trim(),
           timestamp: body.timestamp ?? Math.floor(Date.now() / 1000),
           direction: 'incoming',
           senderName: body.senderData.senderName,

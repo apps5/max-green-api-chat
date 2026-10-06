@@ -41,9 +41,9 @@ export interface IncomingNotification {
       typeMessage?: string
       textMessageData?: {
         textMessage?: string
-  extendedTextMessage?: {
-    text?: string
-  }
+      }
+      extendedTextMessageData?: {
+        text?: string
       }
     }
   }
